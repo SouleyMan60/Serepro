@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
 import NotFound from "./pages/OtherPage/NotFound";
@@ -27,14 +27,25 @@ import Avance from "./pages/Avance";
 import Credit from "./pages/Credit";
 import Archivage from "./pages/Archivage";
 
+// Auth
+import { AuthProvider, useAuth, AuthLoadingSpinner } from "./context/AuthContext";
+
+// Protège AppLayout : redirige vers /signin si non authentifié
+function ProtectedLayout() {
+  const { user, loading } = useAuth();
+  if (loading) return <AuthLoadingSpinner />;
+  if (!user) return <Navigate to="/signin" replace />;
+  return <AppLayout />;
+}
+
 export default function App() {
   return (
-    <>
-      <Router>
+    <Router>
+      <AuthProvider>
         <ScrollToTop />
         <Routes>
-          {/* Dashboard Layout */}
-          <Route element={<AppLayout />}>
+          {/* Routes protégées — nécessitent une session Firebase active */}
+          <Route element={<ProtectedLayout />}>
             <Route index path="/" element={<Home />} />
 
             {/* SEREPRO routes */}
@@ -69,14 +80,14 @@ export default function App() {
             <Route path="/bar-chart" element={<BarChart />} />
           </Route>
 
-          {/* Auth Layout */}
+          {/* Routes publiques */}
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
 
-          {/* Fallback Route */}
+          {/* Fallback */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </Router>
-    </>
+      </AuthProvider>
+    </Router>
   );
 }
