@@ -1,0 +1,418 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id            String         @id @default(uuid())
+  name          String
+  rccm          String?
+  nif           String?
+  address       String?
+  phone         String?
+  email         String?
+  logoUrl       String?
+  plan          Plan           @default(STARTER)
+  tenantType    TenantType @default(ENTREPRISE)
+  companyName   String?
+  ownerName     String?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  users         User[]
+  employees     Employee[]
+  deadlines     Deadline[]
+  advances      Advance[]
+  loans         Loan[]
+  savings       Saving[]
+  documents     Document[]
+  payrolls      Payroll[]
+  subscriptions Subscription[]
+  @@map("tenants")
+}
+
+enum Plan {
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum TenantType {
+  ENTREPRISE
+  ENTREPRENEUR
+}
+
+model User {
+  id          String    @id @default(uuid())
+  firebaseUid String    @unique
+  email       String
+  displayName String?
+  role        UserRole  @default(EMPLOYER)
+  isActive    Boolean   @default(true)
+  tenantId    String
+  employeeId  String?   @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  employee    Employee? @relation(fields: [employeeId], references: [id])
+  @@index([tenantId])
+  @@index([firebaseUid])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  EMPLOYER
+  EMPLOYEE
+}
+
+model Employee {
+  id              String         @id @default(uuid())
+  tenantId        String
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime?
+  gender          Gender?
+  nationality     String?        @default("CI")
+  phone           String
+  email           String?
+  address         String?
+  contractType    ContractType
+  position        String
+  department      String?
+  grossSalary     Int
+  startDate       DateTime
+  endDate         DateTime?
+  trialPeriodDays Int?
+  paymentChannel  PaymentChannel @default(WAVE)
+  paymentNumber   String?
+  status          EmployeeStatus @default(ACTIVE)
+  cnpsNumber      String?
+  taxNumber       String?
+  creditScore     Int?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  user            User?
+  payslips        Payslip[]
+  contracts       Contract[]
+  advances        Advance[]
+  loans           Loan[]
+  savings         Saving[]
+  documents       Document[]
+  deadlines       Deadline[]     @relation("EmployeeDeadlines")
+  @@index([tenantId])
+  @@index([status])
+  @@map("employees")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum ContractType {
+  CDI
+  CDD
+  STAGE
+  FREELANCE
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  TRIAL
+  SUSPENDED
+  INACTIVE
+}
+
+enum PaymentChannel {
+  WAVE
+  ORANGE_MONEY
+  MTN_MONEY
+  BANK_TRANSFER
+}
+
+model Contract {
+  id              String         @id @default(uuid())
+  tenantId        String
+  employeeId      String
+  type            ContractType
+  position        String
+  department      String?
+  grossSalary     Int
+  startDate       DateTime
+  endDate         DateTime?
+  trialPeriodDays Int?
+  pdfUrl          String?
+  pdfSize         Int?
+  signedAt        DateTime?
+  status          ContractStatus @default(DRAFT)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  employee        Employee       @relation(fields: [employeeId], references: [id])
+  @@index([tenantId, employeeId])
+  @@map("contracts")
+}
+
+enum ContractStatus {
+  DRAFT
+  GENERATED
+  SIGNED
+}
+
+model Payroll {
+  id            String        @id @default(uuid())
+  tenantId      String
+  month         Int
+  year          Int
+  totalGross    Int
+  totalNet      Int
+  totalCnpsEmp  Int
+  totalCnpsEmpr Int
+  totalIts      Int
+  totalCmu      Int
+  status        PayrollStatus @default(DRAFT)
+  generatedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  payslips      Payslip[]
+  @@unique([tenantId, month, year])
+  @@map("payrolls")
+}
+
+enum PayrollStatus {
+  DRAFT
+  GENERATED
+  SENT
+}
+
+model Payslip {
+  id              String        @id @default(uuid())
+  tenantId        String
+  employeeId      String
+  payrollId       String?
+  month           Int
+  year            Int
+  grossSalary     Int
+  cnpsEmployee    Int
+  cnpsEmployer    Int
+  its             Int
+  cmu             Int
+  netSalary       Int
+  advanceDeducted Int           @default(0)
+  savingsDeducted Int           @default(0)
+  netPayable      Int
+  pdfUrl          String?
+  pdfSize         Int?
+  sentAt          DateTime?
+  status          PayslipStatus @default(DRAFT)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  employee        Employee      @relation(fields: [employeeId], references: [id])
+  payroll         Payroll?      @relation(fields: [payrollId], references: [id])
+  @@unique([tenantId, employeeId, month, year])
+  @@index([tenantId, month, year])
+  @@map("payslips")
+}
+
+enum PayslipStatus {
+  DRAFT
+  GENERATED
+  SENT
+}
+
+model Deadline {
+  id          String       @id @default(uuid())
+  tenantId    String
+  employeeId  String?
+  title       String
+  description String?
+  type        DeadlineType
+  dueDate     DateTime
+  amount      Int?
+  urgency     Urgency      @default(OK)
+  completed   Boolean      @default(false)
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  employee    Employee?    @relation("EmployeeDeadlines", fields: [employeeId], references: [id])
+  @@index([tenantId, completed])
+  @@index([dueDate])
+  @@map("deadlines")
+}
+
+enum DeadlineType {
+  CNPS
+  ITS
+  CMU
+  CONTRACT_RENEWAL
+  OTHER
+}
+
+enum Urgency {
+  URGENT
+  BIENTOT
+  OK
+}
+
+model Document {
+  id         String   @id @default(uuid())
+  tenantId   String
+  employeeId String
+  name       String
+  type       DocType
+  storageKey String   @unique
+  fileSize   Int
+  mimeType   String
+  month      Int?
+  year       Int?
+  uploadedAt DateTime @default(now())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  @@index([tenantId, employeeId])
+  @@map("documents")
+}
+
+enum DocType {
+  CONTRACT
+  PAYSLIP
+  KYC
+  ATTESTATION
+  ADVANCE_RECEIPT
+  OTHER
+}
+
+model Advance {
+  id            String         @id @default(uuid())
+  tenantId      String
+  employeeId    String
+  amount        Int
+  maxAmount     Int
+  channel       PaymentChannel
+  status        AdvanceStatus  @default(PENDING)
+  repaymentDate DateTime
+  repaidAt      DateTime?
+  approvedAt    DateTime?
+  approvedBy    String?
+  refusedAt     DateTime?
+  refusedReason String?
+  externalRef   String?
+  note          String?
+  requestedAt   DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  employee      Employee       @relation(fields: [employeeId], references: [id])
+  @@index([tenantId, status])
+  @@index([employeeId])
+  @@map("advances")
+}
+
+enum AdvanceStatus {
+  PENDING
+  APPROVED
+  REFUSED
+  REPAID
+  CANCELLED
+}
+
+model Loan {
+  id             String     @id @default(uuid())
+  tenantId       String
+  employeeId     String
+  amount         Int
+  duration       Int
+  monthlyPayment Int
+  interestRate   Float
+  creditScore    Int
+  maxEligible    Int
+  status         LoanStatus @default(ELIGIBLE)
+  requestedAt    DateTime?
+  approvedAt     DateTime?
+  disbursedAt    DateTime?
+  completedAt    DateTime?
+  partnerRef     String?
+  note           String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  tenant         Tenant     @relation(fields: [tenantId], references: [id])
+  employee       Employee   @relation(fields: [employeeId], references: [id])
+  repayments     LoanRepayment[]
+  @@index([tenantId, status])
+  @@map("loans")
+}
+
+enum LoanStatus {
+  ELIGIBLE
+  PENDING
+  APPROVED
+  REFUSED
+  ACTIVE
+  COMPLETED
+}
+
+model LoanRepayment {
+  id      String   @id @default(uuid())
+  loanId  String
+  amount  Int
+  paidAt  DateTime @default(now())
+  method  String?
+  loan    Loan     @relation(fields: [loanId], references: [id])
+  @@map("loan_repayments")
+}
+
+model Saving {
+  id            String              @id @default(uuid())
+  tenantId      String
+  employeeId    String
+  monthlyAmount Int
+  balance       Int                 @default(0)
+  isActive      Boolean             @default(true)
+  goal          String?
+  goalAmount    Int?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  tenant        Tenant              @relation(fields: [tenantId], references: [id])
+  employee      Employee            @relation(fields: [employeeId], references: [id])
+  transactions  SavingTransaction[]
+  @@unique([tenantId, employeeId])
+  @@map("savings")
+}
+
+model SavingTransaction {
+  id        String   @id @default(uuid())
+  savingId  String
+  amount    Int
+  type      String
+  note      String?
+  createdAt DateTime @default(now())
+  saving    Saving   @relation(fields: [savingId], references: [id])
+  @@map("saving_transactions")
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  tenantId           String
+  plan               Plan
+  status             SubscriptionStatus @default(ACTIVE)
+  amount             Int
+  channel            PaymentChannel
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  externalRef        String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  tenant             Tenant             @relation(fields: [tenantId], references: [id])
+  @@index([tenantId])
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+

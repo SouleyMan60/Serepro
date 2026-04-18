@@ -1,0 +1,395 @@
+// ============================================================
+//  SEREPRO — Prisma Schema complet
+//  PostgreSQL · Multi-tenant · RH + Finance
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── TENANT (entreprise cliente) ──────────────────────────────
+model Tenant {
+  id          String   @id @default(uuid())
+  name        String
+  rccm        String?                        // Registre du Commerce CI
+  nif         String?                        // Numéro Identifiant Fiscal
+  address     String?
+  phone       String?
+  email       String?
+  logoUrl     String?
+  plan        Plan     @default(STARTER)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  employees   Employee[]
+  deadlines   Deadline[]
+  advances    Advance[]
+  loans       Loan[]
+  savings     Saving[]
+  documents   Document[]
+  payrolls    Payroll[]
+  subscriptions Subscription[]
+
+  @@map("tenants")
+}
+
+enum Plan {
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+// ── USER (compte authentifié Firebase) ───────────────────────
+model User {
+  id           String    @id @default(uuid())
+  firebaseUid  String    @unique
+  email        String
+  displayName  String?
+  role         UserRole  @default(EMPLOYER)
+  isActive     Boolean   @default(true)
+  tenantId     String
+  employeeId   String?   @unique              // lien si rôle EMPLOYEE
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  employee     Employee? @relation(fields: [employeeId], references: [id])
+
+  @@index([tenantId])
+  @@index([firebaseUid])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  EMPLOYER
+  EMPLOYEE
+}
+
+// ── EMPLOYEE ─────────────────────────────────────────────────
+model Employee {
+  id              String         @id @default(uuid())
+  tenantId        String
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime?
+  gender          Gender?
+  nationality     String?        @default("CI")
+  phone           String
+  email           String?
+  address         String?
+
+  // Contrat
+  contractType    ContractType
+  position        String
+  department      String?
+  grossSalary     Int            // FCFA
+  startDate       DateTime
+  endDate         DateTime?
+  trialPeriodDays Int?
+  paymentChannel  PaymentChannel @default(WAVE)
+  paymentNumber   String?        // numéro Wave/Orange/MTN
+
+  // Statut
+  status          EmployeeStatus @default(ACTIVE)
+  cnpsNumber      String?        // Numéro CNPS
+  taxNumber       String?        // NIF personnel
+
+  // Score crédit (calculé)
+  creditScore     Int?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  user            User?
+  payslips        Payslip[]
+  contracts       Contract[]
+  advances        Advance[]
+  loans           Loan[]
+  savings         Saving[]
+  documents       Document[]
+  deadlines       Deadline[]     @relation("EmployeeDeadlines")
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("employees")
+}
+
+enum Gender          { MALE FEMALE }
+enum ContractType    { CDI CDD STAGE FREELANCE }
+enum EmployeeStatus  { ACTIVE TRIAL SUSPENDED INACTIVE }
+enum PaymentChannel  { WAVE ORANGE_MONEY MTN_MONEY BANK_TRANSFER }
+
+// ── CONTRACT ─────────────────────────────────────────────────
+model Contract {
+  id              String         @id @default(uuid())
+  tenantId        String
+  employeeId      String
+  type            ContractType
+  position        String
+  department      String?
+  grossSalary     Int
+  startDate       DateTime
+  endDate         DateTime?
+  trialPeriodDays Int?
+  pdfUrl          String?
+  pdfSize         Int?
+  signedAt        DateTime?
+  status          ContractStatus @default(DRAFT)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  employee        Employee       @relation(fields: [employeeId], references: [id])
+
+  @@index([tenantId, employeeId])
+  @@map("contracts")
+}
+
+enum ContractStatus { DRAFT GENERATED SIGNED }
+
+// ── PAYROLL (fiche de paie mensuelle) ────────────────────────
+model Payroll {
+  id              String        @id @default(uuid())
+  tenantId        String
+  month           Int           // 1–12
+  year            Int
+  totalGross      Int           // masse salariale brute
+  totalNet        Int           // masse salariale nette
+  totalCnpsEmp    Int           // cotisations CNPS salarié
+  totalCnpsEmpr   Int           // charges patronales
+  totalIts        Int
+  totalCmu        Int
+  status          PayrollStatus @default(DRAFT)
+  generatedAt     DateTime?
+  createdAt       DateTime      @default(now())
+
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  payslips        Payslip[]
+
+  @@unique([tenantId, month, year])
+  @@map("payrolls")
+}
+
+enum PayrollStatus { DRAFT GENERATED SENT }
+
+// ── PAYSLIP (bulletin de paie individuel) ────────────────────
+model Payslip {
+  id              String        @id @default(uuid())
+  tenantId        String
+  employeeId      String
+  payrollId       String?
+  month           Int
+  year            Int
+
+  grossSalary     Int
+  cnpsEmployee    Int           // 6.3% salarié
+  cnpsEmployer    Int           // 16.8% employeur
+  its             Int           // Impôt sur Traitement et Salaires
+  cmu             Int           // Couverture Maladie Universelle (1000 FCFA)
+  netSalary       Int           // brut - cotisations
+  advanceDeducted Int           @default(0)
+  savingsDeducted Int           @default(0)
+  netPayable      Int           // ce qui est versé
+
+  pdfUrl          String?
+  pdfSize         Int?
+  sentAt          DateTime?
+  status          PayslipStatus @default(DRAFT)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  employee        Employee      @relation(fields: [employeeId], references: [id])
+  payroll         Payroll?      @relation(fields: [payrollId], references: [id])
+
+  @@unique([tenantId, employeeId, month, year])
+  @@index([tenantId, month, year])
+  @@map("payslips")
+}
+
+enum PayslipStatus { DRAFT GENERATED SENT }
+
+// ── DEADLINE (échéancier CNPS/ITS/CMU/contrats) ──────────────
+model Deadline {
+  id          String          @id @default(uuid())
+  tenantId    String
+  employeeId  String?
+  title       String
+  description String?
+  type        DeadlineType
+  dueDate     DateTime
+  amount      Int?
+  urgency     Urgency         @default(OK)
+  completed   Boolean         @default(false)
+  completedAt DateTime?
+  createdAt   DateTime        @default(now())
+
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  employee    Employee?       @relation("EmployeeDeadlines", fields: [employeeId], references: [id])
+
+  @@index([tenantId, completed])
+  @@index([dueDate])
+  @@map("deadlines")
+}
+
+enum DeadlineType { CNPS ITS CMU CONTRACT_RENEWAL OTHER }
+enum Urgency      { URGENT BIENTOT OK }
+
+// ── DOCUMENT (MinIO) ─────────────────────────────────────────
+model Document {
+  id          String      @id @default(uuid())
+  tenantId    String
+  employeeId  String
+  name        String
+  type        DocType
+  storageKey  String      @unique    // clé MinIO / R2
+  fileSize    Int         // bytes
+  mimeType    String
+  month       Int?
+  year        Int?
+  uploadedAt  DateTime    @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  employee    Employee    @relation(fields: [employeeId], references: [id])
+
+  @@index([tenantId, employeeId])
+  @@map("documents")
+}
+
+enum DocType { CONTRACT PAYSLIP KYC ATTESTATION ADVANCE_RECEIPT OTHER }
+
+// ── ADVANCE (avance sur salaire) ─────────────────────────────
+model Advance {
+  id             String        @id @default(uuid())
+  tenantId       String
+  employeeId     String
+  amount         Int           // FCFA
+  maxAmount      Int           // 40% net au moment de la demande
+  channel        PaymentChannel
+  status         AdvanceStatus @default(PENDING)
+  repaymentDate  DateTime      // date prévue de remboursement
+  repaidAt       DateTime?
+  approvedAt     DateTime?
+  approvedBy     String?       // userId
+  refusedAt      DateTime?
+  refusedReason  String?
+  externalRef    String?       // référence CinetPay
+  note           String?
+  requestedAt    DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  employee       Employee      @relation(fields: [employeeId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([employeeId])
+  @@map("advances")
+}
+
+enum AdvanceStatus { PENDING APPROVED REFUSED REPAID CANCELLED }
+
+// ── LOAN (micro-crédit) ──────────────────────────────────────
+model Loan {
+  id             String     @id @default(uuid())
+  tenantId       String
+  employeeId     String
+  amount         Int
+  duration       Int        // mois
+  monthlyPayment Int
+  interestRate   Float      // ex: 0.10 = 10%
+  creditScore    Int        // score au moment de la demande
+  maxEligible    Int
+  status         LoanStatus @default(ELIGIBLE)
+  requestedAt    DateTime?
+  approvedAt     DateTime?
+  disbursedAt    DateTime?
+  completedAt    DateTime?
+  partnerRef     String?    // référence partenaire MFI
+  note           String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  tenant         Tenant     @relation(fields: [tenantId], references: [id])
+  employee       Employee   @relation(fields: [employeeId], references: [id])
+  repayments     LoanRepayment[]
+
+  @@index([tenantId, status])
+  @@map("loans")
+}
+
+enum LoanStatus { ELIGIBLE PENDING APPROVED REFUSED ACTIVE COMPLETED }
+
+model LoanRepayment {
+  id        String   @id @default(uuid())
+  loanId    String
+  amount    Int
+  paidAt    DateTime @default(now())
+  method    String?
+
+  loan      Loan     @relation(fields: [loanId], references: [id])
+
+  @@map("loan_repayments")
+}
+
+// ── SAVING (épargne automatique) ─────────────────────────────
+model Saving {
+  id            String      @id @default(uuid())
+  tenantId      String
+  employeeId    String
+  monthlyAmount Int         // montant prélevé/mois
+  balance       Int         @default(0)
+  isActive      Boolean     @default(true)
+  goal          String?     // objectif textuel
+  goalAmount    Int?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  employee      Employee    @relation(fields: [employeeId], references: [id])
+  transactions  SavingTransaction[]
+
+  @@unique([tenantId, employeeId])
+  @@map("savings")
+}
+
+model SavingTransaction {
+  id        String   @id @default(uuid())
+  savingId  String
+  amount    Int
+  type      String   // CREDIT | DEBIT
+  note      String?
+  createdAt DateTime @default(now())
+
+  saving    Saving   @relation(fields: [savingId], references: [id])
+
+  @@map("saving_transactions")
+}
+
+// ── SUBSCRIPTION (abonnement SaaS) ───────────────────────────
+model Subscription {
+  id           String             @id @default(uuid())
+  tenantId     String
+  plan         Plan
+  status       SubscriptionStatus @default(ACTIVE)
+  amount       Int                // FCFA/mois
+  channel      PaymentChannel
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  externalRef  String?            // référence CinetPay
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  tenant       Tenant             @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus { ACTIVE PAST_DUE CANCELLED }
