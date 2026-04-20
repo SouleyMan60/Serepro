@@ -3,35 +3,67 @@ import {
   useContext,
   useEffect,
   useState,
+  useCallback,
   type ReactNode,
 } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "../config/firebase";
 
+const API_URL = "https://api.serepro.net/api/v1";
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  needsPersona: boolean;
+  refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  needsPersona: false,
+  refreshUserProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsPersona, setNeedsPersona] = useState(false);
+
+  const checkProfile = useCallback(async (firebaseUser: User) => {
+    try {
+      const token = await firebaseUser.getIdToken();
+      const res = await fetch(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNeedsPersona(res.status === 404);
+    } catch (err) {
+      // CORS or network error — don't block the user
+      console.warn("[AuthContext] /auth/me unreachable, skipping persona check:", err);
+      setNeedsPersona(false);
+    }
+  }, []);
+
+  const refreshUserProfile = useCallback(async () => {
+    const u = auth.currentUser;
+    if (u) await checkProfile(u);
+  }, [checkProfile]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
+      if (firebaseUser) {
+        await checkProfile(firebaseUser);
+      } else {
+        setNeedsPersona(false);
+      }
       setLoading(false);
     });
     return unsubscribe;
-  }, []);
+  }, [checkProfile]);
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, loading, needsPersona, refreshUserProfile }}>
       {children}
     </AuthContext.Provider>
   );
@@ -41,7 +73,6 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
-// Spinner with SEREPRO logo — shown while Firebase resolves auth state
 export function AuthLoadingSpinner() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">

@@ -29,6 +29,7 @@ import Archivage from "./pages/Archivage";
 
 // Auth
 import { AuthProvider, useAuth, AuthLoadingSpinner } from "./context/AuthContext";
+import Register from "./pages/Auth/Register";
 
 // Protège AppLayout : redirige vers /signin si non authentifié
 function ProtectedLayout() {
@@ -83,6 +84,7 @@ export default function App() {
           {/* Routes publiques */}
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/register" element={<Register />} />
 
           {/* Fallback */}
           <Route path="*" element={<NotFound />} />

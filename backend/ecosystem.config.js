@@ -11,6 +11,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 3001,
+	ALLOWED_ORIGINS: 'https://app.serepro.net',
       },
       error_file: '/var/www/serepro/logs/api-error.log',
       out_file:   '/var/www/serepro/logs/api-out.log',

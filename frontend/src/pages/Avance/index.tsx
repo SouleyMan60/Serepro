@@ -80,7 +80,7 @@ export default function Avance() {
 
   return (
     <>
-      <PageMeta title="Avance sur Salaire | SEREPRO" description="Demande d'avance sur salaire SEREPRO" />
+      <PageMeta title="Avance Salaire | SEREPRO" description="Demande d'avance sur salaire SEREPRO" />
 
       <div className="grid grid-cols-12 gap-6">
         {/* Form */}

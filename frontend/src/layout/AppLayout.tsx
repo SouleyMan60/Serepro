@@ -3,12 +3,16 @@ import { Outlet } from "react-router";
 import AppHeader from "./AppHeader";
 import Backdrop from "./Backdrop";
 import AppSidebar from "./AppSidebar";
+import { useAuth } from "../context/AuthContext";
+import PersonaModal from "../components/auth/PersonaModal";
 
 const LayoutContent: React.FC = () => {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
+  const { user, needsPersona } = useAuth();
 
   return (
     <div className="min-h-screen xl:flex">
+      {user && needsPersona && <PersonaModal />}
       <div>
         <AppSidebar />
         <Backdrop />

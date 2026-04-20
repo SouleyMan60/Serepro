@@ -83,17 +83,14 @@ const AppHeader: React.FC = () => {
             {/* Cross Icon */}
           </button>
 
-          <Link to="/" className="lg:hidden">
-            <img
-              className="dark:hidden"
-              src="./images/logo/logo.svg"
-              alt="Logo"
-            />
-            <img
-              className="hidden dark:block"
-              src="./images/logo/logo-dark.svg"
-              alt="Logo"
-            />
+          <Link to="/" className="flex items-center gap-2 lg:hidden">
+            <div
+              className="flex items-center justify-center w-8 h-8 rounded-lg shadow-sm flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, #F97316, #16a34a)" }}
+            >
+              <span className="text-white font-black text-base leading-none select-none">S</span>
+            </div>
+            <span className="font-bold text-sm text-gray-800 dark:text-white/90 tracking-tight">SEREPRO</span>
           </Link>
 
           <button
