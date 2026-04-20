@@ -14,7 +14,7 @@ import { env }          from './config/env'
 import { logger }       from './config/logger'
 import prisma           from './config/prisma'
 import { redis }        from './config/services'
-import { errorHandler, apiLimiter, authLimiter } from './middleware'
+import { errorHandler, apiLimiter, authLimiter, authMiddleware } from './middleware'
 
 // ── Routers modules ───────────────────────────────────────────
 import employeesRouter  from './modules/employees/employees.router'
@@ -29,6 +29,7 @@ import {
 
 // ── App Express ───────────────────────────────────────────────
 const app = express()
+app.set('trust proxy', 1)
 
 // ── Middlewares globaux ───────────────────────────────────────
 app.use(helmet({
@@ -106,6 +107,48 @@ app.post(`${API}/auth/register`, authLimiter, async (req, res, next) => {
 
     res.status(201).json({ data: { user, tenant } })
   } catch (e) { next(e) }
+})
+
+// GET /api/v1/auth/me — profil utilisateur connecté + tenant
+app.get(`${API}/auth/me`, authMiddleware, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      include: { tenant: true },
+    })
+    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' })
+    return res.json({ data: user })
+  } catch (err) { next(err) }
+})
+
+// PATCH /api/v1/users/profile — mise à jour displayName + tenant phone/bio
+app.patch(`${API}/users/profile`, authMiddleware, async (req, res, next) => {
+  try {
+    const { displayName, phone, pays, ville, codePostal, nif } = req.body
+    const userId   = req.user!.id
+    const tenantId = req.user!.tenantId
+
+    // Build address string from separate fields if provided
+    const addressParts = [ville, pays, codePostal].filter(Boolean)
+    const address = addressParts.length > 0 ? addressParts.join(', ') : undefined
+
+    const [user] = await Promise.all([
+      prisma.user.update({
+        where: { id: userId },
+        data: { ...(displayName ? { displayName } : {}) },
+      }),
+      prisma.tenant.update({
+        where: { id: tenantId },
+        data: {
+          ...(phone   ? { phone }   : {}),
+          ...(nif     ? { nif }     : {}),
+          ...(address ? { address } : {}),
+        },
+      }),
+    ])
+
+    return res.json({ data: { user } })
+  } catch (err) { next(err) }
 })
 
 // Modules

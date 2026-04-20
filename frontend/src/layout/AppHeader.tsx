@@ -160,13 +160,6 @@ const AppHeader: React.FC = () => {
             <NotificationDropdown />
             {/* <!-- Notification Menu Area --> */}
           </div>
-          {/* <!-- Nouvel Employe --> */}
-          <button className="hidden lg:inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#F97316] to-[#16a34a] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8 3.333v9.334M3.333 8h9.334" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-            Nouvel employe
-          </button>
           {/* <!-- User Area --> */}
           <UserDropdown />
         </div>

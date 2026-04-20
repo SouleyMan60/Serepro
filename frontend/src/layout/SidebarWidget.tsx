@@ -1,23 +1,31 @@
 export default function SidebarWidget() {
   return (
-    <div
-      className={`
-        mx-auto mb-10 w-full max-w-60 rounded-2xl bg-gray-50 px-4 py-5 text-center dark:bg-white/[0.03]`}
+    <div className="mx-auto mb-10 w-full max-w-60 rounded-2xl px-4 py-5 text-center overflow-hidden relative"
+      style={{ background: "linear-gradient(135deg, rgba(249,115,22,0.08), rgba(22,163,74,0.08))" }}
     >
-      <h3 className="mb-2 font-semibold text-gray-900 dark:text-white">
-        #1 Tailwind CSS Dashboard
-      </h3>
-      <p className="mb-4 text-gray-500 text-theme-sm dark:text-gray-400">
-        Leading Tailwind CSS Admin Template with 400+ UI Component and Pages.
-      </p>
-      <a
-        href="https://tailadmin.com/pricing"
-        target="_blank"
-        rel="nofollow"
-        className="flex items-center justify-center p-3 font-medium text-white rounded-lg bg-brand-500 text-theme-sm hover:bg-brand-600"
-      >
-        Purchase Plan
-      </a>
+      <div className="absolute inset-0 opacity-5 pointer-events-none select-none flex items-center justify-center text-[80px] font-black text-gray-800 dark:text-white">
+        S
+      </div>
+      <div className="relative z-10">
+        <div
+          className="flex items-center justify-center w-10 h-10 rounded-xl mx-auto mb-3 shadow-sm"
+          style={{ background: "linear-gradient(135deg, #F97316, #16a34a)" }}
+        >
+          <span className="text-white font-black text-lg leading-none select-none">S</span>
+        </div>
+        <h3 className="mb-1 font-semibold text-gray-900 dark:text-white text-sm">
+          SEREPRO Pro
+        </h3>
+        <p className="mb-4 text-gray-500 text-theme-xs dark:text-gray-400 leading-relaxed">
+          Passez au plan Pro pour débloquer toutes les fonctionnalités RH &amp; Finance.
+        </p>
+        <button
+          className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl text-white text-theme-xs font-semibold shadow-sm hover:opacity-90 transition-opacity"
+          style={{ background: "linear-gradient(135deg, #F97316, #16a34a)" }}
+        >
+          Passer au Pro
+        </button>
+      </div>
     </div>
   );
 }
