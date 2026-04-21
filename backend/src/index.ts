@@ -124,7 +124,7 @@ app.get(`${API}/auth/me`, authMiddleware, async (req, res, next) => {
 // PATCH /api/v1/users/profile — mise à jour displayName + tenant phone/bio
 app.patch(`${API}/users/profile`, authMiddleware, async (req, res, next) => {
   try {
-    const { displayName, phone, pays, ville, codePostal, nif } = req.body
+    const { displayName, phone, pays, ville, codePostal, nif, notificationPrefs } = req.body
     const userId   = req.user!.id
     const tenantId = req.user!.tenantId
 
@@ -135,7 +135,9 @@ app.patch(`${API}/users/profile`, authMiddleware, async (req, res, next) => {
     const [user] = await Promise.all([
       prisma.user.update({
         where: { id: userId },
-        data: { ...(displayName ? { displayName } : {}) },
+        data: {
+          ...(displayName       ? { displayName }       : {}),
+        },
       }),
       prisma.tenant.update({
         where: { id: tenantId },
