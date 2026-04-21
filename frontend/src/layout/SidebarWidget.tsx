@@ -3,16 +3,7 @@ export default function SidebarWidget() {
     <div className="mx-auto mb-10 w-full max-w-60 rounded-2xl px-4 py-5 text-center overflow-hidden relative"
       style={{ background: "linear-gradient(135deg, rgba(249,115,22,0.08), rgba(22,163,74,0.08))" }}
     >
-      <div className="absolute inset-0 opacity-5 pointer-events-none select-none flex items-center justify-center text-[80px] font-black text-gray-800 dark:text-white">
-        S
-      </div>
       <div className="relative z-10">
-        <div
-          className="flex items-center justify-center w-10 h-10 rounded-xl mx-auto mb-3 shadow-sm"
-          style={{ background: "linear-gradient(135deg, #F97316, #16a34a)" }}
-        >
-          <span className="text-white font-black text-lg leading-none select-none">S</span>
-        </div>
         <h3 className="mb-1 font-semibold text-gray-900 dark:text-white text-sm">
           SEREPRO Pro
         </h3>

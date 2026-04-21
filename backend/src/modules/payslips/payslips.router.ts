@@ -232,7 +232,7 @@ export const PayslipService = {
       where: { id: payslipId, tenantId },
     })
     if (!payslip?.pdfUrl) throw new AppError('PDF non disponible', 404)
-    return storage.signedUrl(payslip.pdfUrl, 3600)
+    return `${process.env.STORAGE_PUBLIC_URL}/${process.env.STORAGE_BUCKET}/${payslip.pdfUrl}`
   },
 }
 

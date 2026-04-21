@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Badge from "../../components/ui/badge/Badge";
 import PageMeta from "../../components/common/PageMeta";
 import api from "../../config/api";
-import { usePayslips, useGeneratePayslips, usePayslipPdf, type Payslip } from "../../hooks/usePayslips";
+import { usePayslips, useGeneratePayslips, type Payslip } from "../../hooks/usePayslips";
 import { useEmployees, type Employee } from "../../hooks/useEmployees";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -103,7 +103,6 @@ function BulletinsTab({
 }) {
   const { data: payslips = [], isLoading, isError } = usePayslips(month, year);
   const generateMutation = useGeneratePayslips();
-  const pdfMutation = usePayslipPdf();
   const [genError, setGenError] = useState("");
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
 
@@ -124,10 +123,13 @@ function BulletinsTab({
   }
 
   async function downloadPdf(payslip: Payslip) {
-    setPdfLoadingId(payslip.id);
+    console.log("payslip:", payslip);
+    const id = typeof payslip.id === "string" ? payslip.id : String(payslip.id);
+    setPdfLoadingId(id);
     try {
-      const signedUrl = await pdfMutation.mutateAsync(payslip.id);
-      window.open(signedUrl, "_blank", "noopener,noreferrer");
+      const response = await api.get(`/payslips/${id}/download`);
+      const url = response.data?.data?.url || response.data?.url;
+      window.open(url, "_blank", "noopener,noreferrer");
     } catch {
       // silent — user will retry
     } finally {

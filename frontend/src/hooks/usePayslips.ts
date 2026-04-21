@@ -60,8 +60,12 @@ export function usePayslipPdf() {
   return useMutation({
     mutationFn: async (id: string): Promise<string> => {
       const { data } = await api.get(`/payslips/${id}/download`);
-      const url = (data as { url?: string })?.url ?? (data as string);
-      if (!url) throw new Error("URL PDF introuvable");
+      // Handle { url } or { data: { url } } response shapes
+      const url =
+        (data as { url?: string })?.url ??
+        (data as { data?: { url?: string } })?.data?.url ??
+        (typeof data === "string" ? data : undefined);
+      if (!url || typeof url !== "string") throw new Error("URL PDF introuvable");
       return url;
     },
   });

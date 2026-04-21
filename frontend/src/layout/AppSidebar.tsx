@@ -3,14 +3,11 @@ import { Link, useLocation } from "react-router";
 
 // Assume these icons are imported from an icon library
 import {
-  BoxCubeIcon,
   CalenderIcon,
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
-  ListIcon,
   PageIcon,
-  PieChartIcon,
   PlugInIcon,
   TableIcon,
   UserCircleIcon,
@@ -26,18 +23,42 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { icon: <GridIcon />, name: "Tableau de bord", path: "/" },
-  { icon: <UserCircleIcon />, name: "Employes", path: "/employes" },
-  { icon: <TableIcon />, name: "Contrats et Paie", path: "/contrats" },
-  { icon: <CalenderIcon />, name: "Echeancier", path: "/echeancier" },
-  { icon: <ListIcon />, name: "Archivage", path: "/archivage" },
+  { icon: <GridIcon />,        name: "Tableau de bord", path: "/" },
+  { icon: <UserCircleIcon />,  name: "Employés",        path: "/employes" },
+  {
+    icon: <TableIcon />,
+    name: "RH & Paie",
+    subItems: [
+      { name: "Contrats & Bulletins", path: "/contrats" },
+      { name: "Archivage",            path: "/archivage" },
+    ],
+  },
+  {
+    icon: <CalenderIcon />,
+    name: "Fiscal & Social",
+    subItems: [
+      { name: "Échéancier", path: "/echeancier" },
+    ],
+  },
 ];
 
 const othersItems: NavItem[] = [
-  { icon: <PlugInIcon />, name: "Avance Salaire", path: "/avance" },
-  { icon: <PieChartIcon />, name: "Micro-Credit", path: "/credit" },
-  { icon: <BoxCubeIcon />, name: "Epargne Auto", path: "/epargne" },
-  { icon: <PageIcon />, name: "Assurance", path: "/assurance" },
+  {
+    icon: <PlugInIcon />,
+    name: "Finances Employés",
+    subItems: [
+      { name: "Avance Salaire", path: "/avance" },
+      { name: "Micro-Crédit",   path: "/credit"  },
+      { name: "Épargne Auto",   path: "/epargne" },
+    ],
+  },
+  {
+    icon: <PageIcon />,
+    name: "Protection",
+    subItems: [
+      { name: "Assurance Groupe", path: "/assurance" },
+    ],
+  },
 ];
 
 const AppSidebar: React.FC = () => {
