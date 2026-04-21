@@ -97,6 +97,159 @@ documentsRouter.post('/upload', authMiddleware, upload.single('file'), async (re
   } catch (e) { next(e) }
 })
 
+// POST /api/v1/documents/generate-contract
+documentsRouter.post('/generate-contract', authMiddleware, requireEmployer, async (req, res, next) => {
+  try {
+    const {
+      employeeId,
+      missions        = '',
+      responsibilities = '',
+      advantages      = '',
+      trialPeriodDays = '',
+      workLocation    = 'Abidjan',
+      hasRulesAck     = false,
+      nonCompete      = false,
+    } = req.body
+    if (!employeeId) throw new AppError('employeeId requis', 400)
+
+    const employee = await prisma.employee.findFirst({
+      where: { id: employeeId, tenantId: req.tenantId! },
+      include: { tenant: true },
+    })
+    if (!employee) throw new AppError('Employé introuvable', 404)
+
+    const today = new Date().toLocaleDateString('fr-FR')
+
+    const puppeteer = require('puppeteer')
+    const browser = await puppeteer.launch({
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+      headless: true,
+    })
+    const page = await browser.newPage()
+
+    const missionLines  = missions       ? missions.split('\n').map((l: string) => `<li>${l}</li>`).join('') : ''
+    const responsiLines = responsibilities ? responsibilities.split('\n').map((l: string) => `<li>${l}</li>`).join('') : ''
+    const advantLines   = advantages      ? advantages.split('\n').map((l: string) => `<li>${l}</li>`).join('') : ''
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+  body { font-family: Arial, sans-serif; padding: 40px; color: #333; font-size: 13px; line-height: 1.6; }
+  h1 { color: #F97316; text-align: center; margin: 0; font-size: 22px; }
+  h3 { color: #F97316; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #F97316; padding-bottom: 4px; margin-top: 24px; }
+  .header { text-align: center; margin-bottom: 32px; }
+  .subtitle { font-size: 15px; font-weight: bold; margin-top: 6px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
+  .label { font-weight: bold; color: #555; }
+  ul { margin: 6px 0 0 16px; padding: 0; }
+  li { margin-bottom: 3px; }
+  .clause-box { background: #fef9f5; border-left: 3px solid #F97316; padding: 10px 14px; margin-top: 8px; font-size: 12px; }
+  .footer { margin-top: 60px; display: flex; justify-content: space-between; }
+  .signature { border-top: 1px solid #333; width: 200px; text-align: center; padding-top: 10px; font-size: 12px; }
+  .legal { font-size: 11px; color: #888; margin-top: 8px; }
+</style></head><body>
+
+<div class="header">
+  <h1>SEREPRO</h1>
+  <div class="subtitle">CONTRAT DE TRAVAIL — ${employee.contractType}</div>
+</div>
+
+<h3>Parties au contrat</h3>
+<div class="grid">
+  <p><span class="label">Employeur :</span> ${employee.tenant.name}</p>
+  <p><span class="label">Employé :</span> ${employee.firstName} ${employee.lastName}</p>
+  <p><span class="label">Poste :</span> ${employee.position}</p>
+  <p><span class="label">Département :</span> ${employee.department ?? 'N/A'}</p>
+  <p><span class="label">Type de contrat :</span> ${employee.contractType}</p>
+  <p><span class="label">Date de début :</span> ${new Date(employee.startDate).toLocaleDateString('fr-FR')}</p>
+  <p><span class="label">Salaire brut mensuel :</span> ${employee.grossSalary.toLocaleString('fr-FR')} FCFA</p>
+  <p><span class="label">Canal de paiement :</span> ${employee.paymentChannel}</p>
+  <p><span class="label">Lieu de travail :</span> ${workLocation}</p>
+  ${trialPeriodDays ? `<p><span class="label">Période d'essai :</span> ${trialPeriodDays} jours</p>` : ''}
+</div>
+
+${missionLines ? `
+<h3>Missions et Responsabilités</h3>
+${missions ? `<p><span class="label">Missions principales :</span></p><ul>${missionLines}</ul>` : ''}
+${responsiLines ? `<p><span class="label">Responsabilités :</span></p><ul>${responsiLines}</ul>` : ''}
+` : ''}
+
+${advantLines ? `
+<h3>Avantages et Conditions</h3>
+<ul>${advantLines}</ul>
+` : ''}
+
+${nonCompete ? `
+<h3>Clauses Particulières</h3>
+<div class="clause-box">
+  <strong>Clause de non-concurrence</strong><br>
+  Le salarié s'engage, pendant la durée du contrat et pendant une période de 12 mois suivant sa rupture,
+  quelle qu'en soit la cause, à ne pas exercer d'activité concurrente directe ou indirecte,
+  en tant que salarié ou indépendant, dans le même secteur d'activité.
+</div>
+` : ''}
+
+${hasRulesAck ? `
+<h3>Règlement Intérieur</h3>
+<div class="clause-box">
+  Le salarié déclare avoir pris connaissance du règlement intérieur de l'entreprise
+  et s'engage à le respecter dans son intégralité.
+</div>
+` : ''}
+
+<h3>Dispositions générales</h3>
+<p>Le présent contrat est régi par les dispositions du Code du Travail de la République de Côte d'Ivoire
+et de la Convention Collective applicable.</p>
+
+<div class="footer">
+  <div class="signature">
+    <p><strong>L'Employeur</strong></p>
+    <p>${employee.tenant.name}</p>
+    <p style="margin-top:30px; font-size:11px; color:#aaa;">Signature &amp; cachet</p>
+  </div>
+  <div class="signature" style="text-align:center;">
+    <p style="font-size:11px; color:#555;">Fait à ${workLocation}, le ${today}</p>
+  </div>
+  <div class="signature">
+    <p><strong>L'Employé</strong></p>
+    <p>${employee.firstName} ${employee.lastName}</p>
+    <p style="margin-top:30px; font-size:11px; color:#aaa;">Signature précédée de<br>"Lu et approuvé"</p>
+  </div>
+</div>
+
+<p class="legal">Document généré par SEREPRO — ${today}</p>
+</body></html>`
+
+    await page.setContent(html, { waitUntil: 'networkidle0' })
+    const pdfBuffer = await page.pdf({ format: 'A4', margin: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' } })
+    await browser.close()
+
+    const key = storage.buildKey.contract(req.tenantId!, employeeId)
+    await storage.upload({
+      key,
+      buffer:   Buffer.from(pdfBuffer),
+      mimeType: 'application/pdf',
+      tenantId: req.tenantId!,
+      metadata: { type: 'CONTRACT', employeeId },
+    })
+
+    await prisma.document.create({
+      data: {
+        tenantId:   req.tenantId!,
+        employeeId,
+        type:       'CONTRACT',
+        name:       `Contrat_${employee.firstName}_${employee.lastName}.pdf`,
+        storageKey: key,
+        fileSize:   pdfBuffer.length,
+        mimeType:   'application/pdf',
+      },
+    })
+
+    const signedUrl = `${process.env.STORAGE_PUBLIC_URL}/${process.env.STORAGE_BUCKET}/${key}`
+    respond.ok(res, { url: signedUrl })
+  } catch (e) { next(e) }
+})
+
 // GET /api/v1/documents/:id/download — URL signée
 documentsRouter.get('/:id/download', authMiddleware, async (req, res, next) => {
   try {
@@ -104,7 +257,7 @@ documentsRouter.get('/:id/download', authMiddleware, async (req, res, next) => {
       where: { id: req.params.id, tenantId: req.tenantId! },
     })
     if (!doc) return respond.notFound(res)
-    const url = await storage.signedUrl(doc.storageKey, 3600)
+    const url = `${process.env.STORAGE_PUBLIC_URL}/${process.env.STORAGE_BUCKET}/${doc.storageKey}`
     respond.ok(res, { url, expiresIn: 3600 })
   } catch (e) { next(e) }
 })

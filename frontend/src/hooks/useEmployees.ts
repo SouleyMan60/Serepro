@@ -13,6 +13,7 @@ export interface Employee {
   grossSalary: number;
   paymentChannel: "WAVE" | "ORANGE_MONEY" | "MTN_MONEY";
   startDate: string;
+  endDate?: string;
   status: "ACTIVE" | "ON_LEAVE" | "SUSPENDED";
   creditScore?: number;
   tenantId: string;

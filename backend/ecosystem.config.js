@@ -9,6 +9,7 @@ module.exports = {
       watch: false,
       max_memory_restart: '512M',
       env: {
+        PUPPETEER_EXECUTABLE_PATH: "/usr/bin/chromium-browser",
         NODE_ENV: 'production',
         PORT: 3001,
 	ALLOWED_ORIGINS: 'https://app.serepro.net',
