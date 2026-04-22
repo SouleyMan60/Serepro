@@ -422,6 +422,39 @@ loansRouter.post('/request', authMiddleware, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// POST /api/v1/loans/:id/approve
+loansRouter.post('/:id/approve', authMiddleware, requireEmployer, async (req, res, next) => {
+  try {
+    const loan = await prisma.loan.findFirst({
+      where: { id: req.params.id, tenantId: req.tenantId!, status: 'PENDING' },
+    })
+    if (!loan) throw new AppError('Crédit introuvable ou déjà traité', 404)
+    const updated = await prisma.loan.update({
+      where: { id: req.params.id },
+      data: { status: 'APPROVED', approvedAt: new Date() },
+    })
+    logger.info('Loan approved', { tenantId: req.tenantId, loanId: loan.id })
+    respond.ok(res, updated)
+  } catch (e) { next(e) }
+})
+
+// POST /api/v1/loans/:id/refuse
+loansRouter.post('/:id/refuse', authMiddleware, requireEmployer, async (req, res, next) => {
+  try {
+    const { reason = 'Refus employeur' } = req.body
+    const loan = await prisma.loan.findFirst({
+      where: { id: req.params.id, tenantId: req.tenantId!, status: 'PENDING' },
+    })
+    if (!loan) throw new AppError('Crédit introuvable ou déjà traité', 404)
+    const updated = await prisma.loan.update({
+      where: { id: req.params.id },
+      data: { status: 'REFUSED', note: reason },
+    })
+    logger.info('Loan refused', { tenantId: req.tenantId, loanId: loan.id })
+    respond.ok(res, updated)
+  } catch (e) { next(e) }
+})
+
 // ============================================================
 //  SEREPRO — Webhooks CinetPay
 // ============================================================
