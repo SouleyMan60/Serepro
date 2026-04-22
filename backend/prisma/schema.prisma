@@ -38,6 +38,7 @@ model Tenant {
 enum Plan {
   STARTER
   PRO
+  BUSINESS
   ENTERPRISE
 }
 

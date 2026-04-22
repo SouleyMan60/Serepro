@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Badge from "../../components/ui/badge/Badge";
 import PageMeta from "../../components/common/PageMeta";
+import PlanGate from "../../components/ui/PlanGate";
 import {
   useDeadlines, useCreateDeadline, useCompleteDeadline,
   type Deadline, type CreateDeadlineInput,
@@ -291,6 +292,9 @@ function NotifModal({
             )}
           </div>
 
+          {/* SMS + WhatsApp — plan PRO requis */}
+          <PlanGate requiredPlan="PRO">
+            <>
           {/* SMS */}
           <div>
             <label className="flex items-center justify-between mb-2">
@@ -334,6 +338,8 @@ function NotifModal({
               />
             )}
           </div>
+            </>
+          </PlanGate>
 
           {/* Délai de rappel */}
           <div>

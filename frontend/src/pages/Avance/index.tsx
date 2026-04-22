@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Badge from "../../components/ui/badge/Badge";
 import PageMeta from "../../components/common/PageMeta";
+import PlanGate from "../../components/ui/PlanGate";
 
 const montantsRapides = [50000, 100000, 150000, 200000, 300000, 500000];
 
@@ -79,7 +80,8 @@ export default function Avance() {
   }
 
   return (
-    <>
+    <PlanGate requiredPlan="PRO">
+      <>
       <PageMeta title="Avance Salaire | SEREPRO" description="Demande d'avance sur salaire SEREPRO" />
 
       <div className="grid grid-cols-12 gap-6">
@@ -234,6 +236,7 @@ export default function Avance() {
           </div>
         </div>
       </div>
-    </>
+      </>
+    </PlanGate>
   );
 }

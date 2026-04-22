@@ -14,7 +14,7 @@ import { env }          from './config/env'
 import { logger }       from './config/logger'
 import prisma           from './config/prisma'
 import { redis }        from './config/services'
-import { errorHandler, apiLimiter, authLimiter, authMiddleware } from './middleware'
+import { errorHandler, apiLimiter, authLimiter, authMiddleware, respond, AppError } from './middleware'
 
 // ── Routers modules ───────────────────────────────────────────
 import employeesRouter  from './modules/employees/employees.router'
@@ -151,6 +151,122 @@ app.patch(`${API}/users/profile`, authMiddleware, async (req, res, next) => {
 
     return res.json({ data: { user } })
   } catch (err) { next(err) }
+})
+
+// GET /api/v1/billing/plans — plans disponibles (statique)
+app.get(`${API}/billing/plans`, (_req, res) => {
+  res.json({
+    plans: [
+      {
+        id: 'STARTER', name: 'Starter', price: 0, priceYear: 0,
+        maxEmployees: 5, maxHRUsers: 1, maxContracts: 2,
+        features: { advances: false, microCredit: false, savings: false, insurance: false, employeeSpace: false, smsNotif: false, storage: '1GB' },
+      },
+      {
+        id: 'PRO', name: 'Pro', price: 15000, priceYear: 150000,
+        maxEmployees: 25, maxHRUsers: 3, maxContracts: 20,
+        features: { advances: true, microCredit: true, savings: true, insurance: false, employeeSpace: true, smsNotif: true, storage: '10GB' },
+      },
+      {
+        id: 'BUSINESS', name: 'Business', price: 35000, priceYear: 350000,
+        maxEmployees: 100, maxHRUsers: 10, maxContracts: -1,
+        features: { advances: true, microCredit: true, savings: true, insurance: true, employeeSpace: true, smsNotif: true, storage: '50GB', api: true, multiSite: true },
+      },
+      {
+        id: 'ENTERPRISE', name: 'Enterprise', price: -1, priceYear: -1,
+        maxEmployees: -1, maxHRUsers: -1, maxContracts: -1,
+        features: { advances: true, microCredit: true, savings: true, insurance: true, employeeSpace: true, smsNotif: true, storage: 'unlimited', api: true, multiSite: true },
+      },
+    ],
+  })
+})
+
+// POST /api/v1/billing/subscribe — initier un paiement Paystack
+app.post(`${API}/billing/subscribe`, authMiddleware, async (req, res, next) => {
+  try {
+    const { planId, billing } = req.body
+    const tenant = await prisma.tenant.findUnique({ where: { id: req.user!.tenantId } })
+    if (!tenant) throw new AppError('Tenant introuvable', 404)
+
+    const PRICES: Record<string, Record<string, number>> = {
+      PRO:      { monthly: 15000, yearly: 150000 },
+      BUSINESS: { monthly: 35000, yearly: 350000 },
+    }
+    const amount = PRICES[planId]?.[billing]
+    if (!amount) throw new AppError('Plan invalide', 400)
+
+    const reference = `SEREPRO-${Date.now()}-${req.user!.tenantId.slice(0, 8)}`
+
+    const response = await fetch('https://api.paystack.co/transaction/initialize', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: tenant.email,
+        amount: amount * 100,
+        currency: 'XOF',
+        reference,
+        callback_url: `${process.env.APP_URL}/billing?status=success&ref=${reference}`,
+        metadata: {
+          tenantId: req.user!.tenantId,
+          planId,
+          billing,
+          tenantName: tenant.name,
+          custom_fields: [
+            { display_name: 'Plan',       variable_name: 'plan',    value: planId },
+            { display_name: 'Entreprise', variable_name: 'company', value: tenant.name },
+          ],
+        },
+      }),
+    })
+    const data = await response.json() as any
+    if (!data.status) throw new AppError(data.message || 'Erreur Paystack', 400)
+    respond.ok(res, { paymentUrl: data.data.authorization_url, reference })
+  } catch (e) { next(e) }
+})
+
+// POST /api/v1/billing/verify — vérifier un paiement Paystack
+app.post(`${API}/billing/verify`, authMiddleware, async (req, res, next) => {
+  try {
+    const { reference } = req.body
+    const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+      headers: { 'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
+    })
+    const data = await response.json() as any
+    if (!data.status || data.data.status !== 'success') throw new AppError('Paiement non vérifié', 400)
+
+    const meta = data.data.metadata
+    if (meta?.tenantId && meta?.planId) {
+      await prisma.tenant.update({
+        where: { id: meta.tenantId },
+        data: { plan: meta.planId as any },
+      })
+    }
+    respond.ok(res, { plan: meta?.planId })
+  } catch (e) { next(e) }
+})
+
+// POST /api/v1/billing/webhook — webhook Paystack (signature HMAC-SHA512)
+app.post(`${API}/billing/webhook`, async (req, res, next) => {
+  try {
+    const crypto = await import('crypto')
+    const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY!)
+      .update(JSON.stringify(req.body)).digest('hex')
+    if (hash !== req.headers['x-paystack-signature']) return res.sendStatus(400)
+
+    if (req.body.event === 'charge.success') {
+      const meta = req.body.data.metadata
+      if (meta?.tenantId && meta?.planId) {
+        await prisma.tenant.update({
+          where: { id: meta.tenantId },
+          data: { plan: meta.planId as any },
+        })
+      }
+    }
+    res.sendStatus(200)
+  } catch (e) { next(e) }
 })
 
 // Modules

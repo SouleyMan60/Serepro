@@ -26,6 +26,9 @@ import Echeancier from "./pages/Echeancier";
 import Avance from "./pages/Avance";
 import Credit from "./pages/Credit";
 import Archivage from "./pages/Archivage";
+import Epargne from "./pages/Epargne";
+import Assurance from "./pages/Assurance";
+import Billing from "./pages/Billing";
 
 // Auth
 import { AuthProvider, useAuth, AuthLoadingSpinner } from "./context/AuthContext";
@@ -56,6 +59,9 @@ export default function App() {
             <Route path="/avance" element={<Avance />} />
             <Route path="/credit" element={<Credit />} />
             <Route path="/archivage" element={<Archivage />} />
+            <Route path="/epargne" element={<Epargne />} />
+            <Route path="/assurance" element={<Assurance />} />
+            <Route path="/billing" element={<Billing />} />
 
             {/* Others Page */}
             <Route path="/profile" element={<UserProfiles />} />

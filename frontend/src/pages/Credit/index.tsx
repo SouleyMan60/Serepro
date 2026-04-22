@@ -3,6 +3,7 @@ import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
 import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
+import PlanGate from "../../components/ui/PlanGate";
 
 const score = 72;
 
@@ -93,7 +94,8 @@ export default function Credit() {
       : { label: "Faible", color: "error" as const };
 
   return (
-    <>
+    <PlanGate requiredPlan="PRO">
+      <>
       <PageMeta title="Micro-Crédit | SEREPRO" description="Score crédit et simulateur de micro-crédit SEREPRO" />
 
       <div className="grid grid-cols-12 gap-6">
@@ -239,6 +241,7 @@ export default function Credit() {
           </div>
         </div>
       </div>
-    </>
+      </>
+    </PlanGate>
   );
 }
