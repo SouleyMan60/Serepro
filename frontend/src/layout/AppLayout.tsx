@@ -8,11 +8,14 @@ import PersonaModal from "../components/auth/PersonaModal";
 
 const LayoutContent: React.FC = () => {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
-  const { user, needsPersona } = useAuth();
+  const { needsPersona } = useAuth();
+
+  if (needsPersona) {
+    return <PersonaModal />;
+  }
 
   return (
     <div className="min-h-screen xl:flex">
-      {user && needsPersona && <PersonaModal />}
       <div>
         <AppSidebar />
         <Backdrop />

@@ -33,7 +33,7 @@ function SereproAuthPanel() {
         {/* Slogan */}
         <div className="flex flex-col items-center text-center">
           <h2 className="text-3xl font-bold text-white leading-snug drop-shadow">
-            La RH moderne<br />pour l'Afrique
+            Avec SEREPRO
           </h2>
           <div className="mt-3 w-12 h-1 rounded-full bg-white/50" />
           <p className="mt-4 text-white/80 text-sm max-w-xs leading-relaxed">

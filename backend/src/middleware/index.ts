@@ -152,3 +152,24 @@ export class AppError extends Error {
     this.name = 'AppError'
   }
 }
+
+// Middleware soft — vérifie le token Firebase mais ne bloque pas si user absent en base
+export const softAuthMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1]
+    if (!token) return res.status(401).json({ error: 'Token manquant' })
+    const decoded = await admin.auth().verifyIdToken(token)
+    // Cherche l'utilisateur en base sans bloquer s'il n'existe pas
+    const dbUser = await prisma.user.findUnique({
+      where: { firebaseUid: decoded.uid },
+      select: { id: true, firebaseUid: true, email: true, role: true, tenantId: true, employeeId: true, isActive: true },
+    })
+    if (dbUser) {
+      req.user = { id: dbUser.id, firebaseUid: dbUser.firebaseUid, email: dbUser.email, role: dbUser.role as any, tenantId: dbUser.tenantId, employeeId: dbUser.employeeId ?? undefined }
+      req.tenantId = dbUser.tenantId
+    }
+    next()
+  } catch (err) {
+    return res.status(401).json({ error: 'Token invalide' })
+  }
+}

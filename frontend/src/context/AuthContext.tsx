@@ -6,7 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { onAuthStateChanged, type User } from "firebase/auth";
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { auth } from "../config/firebase";
 
 const API_URL = "https://api.serepro.net/api/v1";
@@ -16,6 +16,7 @@ interface AuthContextType {
   loading: boolean;
   needsPersona: boolean;
   refreshUserProfile: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   needsPersona: false,
   refreshUserProfile: async () => {},
+  logout: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -36,9 +38,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setNeedsPersona(res.status === 404);
+      console.log("GET /auth/me response status:", res.status);
+      if (res.status === 404) {
+        console.log("needsPersona set to:", true);
+        setNeedsPersona(true);
+      } else if (res.ok) {
+        console.log("needsPersona set to:", false);
+        setNeedsPersona(false);
+      }
     } catch (err) {
-      // CORS or network error — don't block the user
       console.warn("[AuthContext] /auth/me unreachable, skipping persona check:", err);
       setNeedsPersona(false);
     }
@@ -49,8 +57,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (u) await checkProfile(u);
   }, [checkProfile]);
 
+  const logout = useCallback(async () => {
+    await signOut(auth);
+  }, []);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log("Auth state changed:", firebaseUser?.email);
       setUser(firebaseUser);
       if (firebaseUser) {
         await checkProfile(firebaseUser);
@@ -63,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [checkProfile]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, needsPersona, refreshUserProfile }}>
+    <AuthContext.Provider value={{ user, loading, needsPersona, refreshUserProfile, logout }}>
       {children}
     </AuthContext.Provider>
   );

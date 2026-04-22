@@ -14,12 +14,13 @@ import { env }          from './config/env'
 import { logger }       from './config/logger'
 import prisma           from './config/prisma'
 import { redis }        from './config/services'
-import { errorHandler, apiLimiter, authLimiter, authMiddleware, respond, AppError } from './middleware'
+import { errorHandler, apiLimiter, authLimiter, authMiddleware, softAuthMiddleware, respond, AppError } from './middleware'
 
 // ── Routers modules ───────────────────────────────────────────
 import employeesRouter  from './modules/employees/employees.router'
 import payslipsRouter   from './modules/payslips/payslips.router'
 import advancesRouter   from './modules/advances/advances.router'
+import savingsRouter    from './modules/savings/savings.router'
 import {
   documentsRouter,
   deadlinesRouter,
@@ -110,10 +111,11 @@ app.post(`${API}/auth/register`, authLimiter, async (req, res, next) => {
 })
 
 // GET /api/v1/auth/me — profil utilisateur connecté + tenant
-app.get(`${API}/auth/me`, authMiddleware, async (req, res, next) => {
+app.get(`${API}/auth/me`, softAuthMiddleware, async (req, res, next) => {
   try {
+    if (!req.user) return res.status(404).json({ error: 'Utilisateur introuvable' })
     const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
+      where: { id: req.user.id },
       include: { tenant: true },
     })
     if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' })
@@ -276,6 +278,7 @@ app.use(`${API}/advances`,   advancesRouter)
 app.use(`${API}/documents`,  documentsRouter)
 app.use(`${API}/deadlines`,  deadlinesRouter)
 app.use(`${API}/loans`,      loansRouter)
+app.use(`${API}/savings`,    savingsRouter)
 app.use('/webhooks',         webhooksRouter)
 
 // 404

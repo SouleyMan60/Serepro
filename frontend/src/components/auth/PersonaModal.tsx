@@ -7,6 +7,7 @@ import Label from "../form/Label";
 import Button from "../ui/button/Button";
 
 type TenantType = "ENTREPRISE" | "ENTREPRENEUR";
+type Step = 1 | 2;
 
 function ErrorBanner({ msg }: { msg: string }) {
   if (!msg) return null;
@@ -33,6 +34,7 @@ function ErrorBanner({ msg }: { msg: string }) {
 export default function PersonaModal() {
   const { refreshUserProfile } = useAuth();
 
+  const [step, setStep] = useState<Step>(1);
   const [tenantType, setTenantType] = useState<TenantType | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -58,11 +60,9 @@ export default function PersonaModal() {
         email: firebaseUser.email ?? "",
         displayName: name.trim(),
         tenantName: name.trim(),
-        role: "EMPLOYER",
+        tenantType,
         ...(phone.trim() ? { phone: phone.trim() } : {}),
       };
-
-      console.log("[PersonaModal] POST /auth/register body:", JSON.stringify(body));
 
       await api.post("/auth/register", body);
 
@@ -71,7 +71,6 @@ export default function PersonaModal() {
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number; data?: { message?: string; error?: string } } })?.response?.status;
       const data = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data;
-      console.error("[PersonaModal] HTTP", status, data);
       const msg =
         data?.message ?? data?.error ?? (err instanceof Error ? err.message : "Une erreur est survenue.");
       setError(status ? `Erreur serveur HTTP ${status} — ${msg}` : msg);
@@ -89,154 +88,179 @@ export default function PersonaModal() {
             className="flex items-center justify-center w-10 h-10 rounded-xl shadow-md flex-shrink-0"
             style={{ background: "linear-gradient(135deg, #F97316, #16a34a)" }}
           >
-            <span className="text-white font-black text-xl leading-none select-none">
-              S
-            </span>
+            <span className="text-white font-black text-xl leading-none select-none">S</span>
           </div>
           <div>
-            <p className="text-sm font-bold text-gray-800 dark:text-white/90 leading-tight">
-              SEREPRO
-            </p>
-            <p className="text-[10px] text-gray-400 uppercase tracking-widest">
-              RH &amp; Finance CI
-            </p>
+            <p className="text-sm font-bold text-gray-800 dark:text-white/90 leading-tight">SEREPRO</p>
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest">RH &amp; Finance CI</p>
           </div>
         </div>
 
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1">
-          Bienvenue sur SEREPRO !
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-          Qui êtes-vous ? Choisissez le profil qui vous correspond.
-        </p>
-
-        {/* Persona cards */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <button
-            type="button"
-            onClick={() => setTenantType("ENTREPRISE")}
-            className={`rounded-2xl border-2 p-4 text-left transition-all ${
-              tenantType === "ENTREPRISE"
-                ? "border-[#F97316] bg-orange-50 dark:bg-orange-500/10"
-                : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-            }`}
-          >
-            <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl mb-3 ${
-                tenantType === "ENTREPRISE"
-                  ? "bg-gradient-to-br from-[#F97316] to-[#fb923c]"
-                  : "bg-gray-100 dark:bg-gray-800"
+        {/* Step dots */}
+        <div className="flex items-center gap-2 mb-6">
+          {([1, 2] as Step[]).map((s) => (
+            <span
+              key={s}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                s === step
+                  ? "w-6 bg-gradient-to-r from-[#F97316] to-[#16a34a]"
+                  : s < step
+                  ? "w-1.5 bg-[#16a34a]"
+                  : "w-1.5 bg-gray-200 dark:bg-gray-700"
               }`}
-            >
-              🏢
-            </div>
-            <p className="font-semibold text-sm text-gray-800 dark:text-white/90 mb-0.5">
-              Entreprise
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-              PME, société avec employés
-            </p>
-            {tenantType === "ENTREPRISE" && (
-              <div className="mt-2 flex items-center gap-1 text-[#F97316] text-xs font-semibold">
-                <svg className="size-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Sélectionné
-              </div>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTenantType("ENTREPRENEUR")}
-            className={`rounded-2xl border-2 p-4 text-left transition-all ${
-              tenantType === "ENTREPRENEUR"
-                ? "border-[#16a34a] bg-green-50 dark:bg-green-500/10"
-                : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-            }`}
-          >
-            <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl mb-3 ${
-                tenantType === "ENTREPRENEUR"
-                  ? "bg-gradient-to-br from-[#16a34a] to-[#4ade80]"
-                  : "bg-gray-100 dark:bg-gray-800"
-              }`}
-            >
-              👤
-            </div>
-            <p className="font-semibold text-sm text-gray-800 dark:text-white/90 mb-0.5">
-              Entrepreneur
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-              Particulier, emploi domestique
-            </p>
-            {tenantType === "ENTREPRENEUR" && (
-              <div className="mt-2 flex items-center gap-1 text-[#16a34a] text-xs font-semibold">
-                <svg className="size-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Sélectionné
-              </div>
-            )}
-          </button>
+            />
+          ))}
         </div>
 
-        {/* Fields */}
-        <div className="space-y-4 mb-6">
-          {error && <ErrorBanner msg={error} />}
+        {/* ── STEP 1 : Choix persona ─────────────────────── */}
+        {step === 1 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1">
+              Bienvenue sur SEREPRO !
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              Qui êtes-vous ? Choisissez le profil qui vous correspond.
+            </p>
 
-          <div>
-            <Label>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <button
+                type="button"
+                onClick={() => setTenantType("ENTREPRISE")}
+                className={`rounded-2xl border-2 p-4 text-left transition-all ${
+                  tenantType === "ENTREPRISE"
+                    ? "border-[#F97316] bg-orange-50 dark:bg-orange-500/10"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl mb-3 ${
+                    tenantType === "ENTREPRISE"
+                      ? "bg-gradient-to-br from-[#F97316] to-[#fb923c]"
+                      : "bg-gray-100 dark:bg-gray-800"
+                  }`}
+                >
+                  🏢
+                </div>
+                <p className="font-semibold text-sm text-gray-800 dark:text-white/90 mb-0.5">Entreprise</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">PME, société avec employés</p>
+                {tenantType === "ENTREPRISE" && (
+                  <div className="mt-2 flex items-center gap-1 text-[#F97316] text-xs font-semibold">
+                    <svg className="size-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Sélectionné
+                  </div>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTenantType("ENTREPRENEUR")}
+                className={`rounded-2xl border-2 p-4 text-left transition-all ${
+                  tenantType === "ENTREPRENEUR"
+                    ? "border-[#16a34a] bg-green-50 dark:bg-green-500/10"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl mb-3 ${
+                    tenantType === "ENTREPRENEUR"
+                      ? "bg-gradient-to-br from-[#16a34a] to-[#4ade80]"
+                      : "bg-gray-100 dark:bg-gray-800"
+                  }`}
+                >
+                  👤
+                </div>
+                <p className="font-semibold text-sm text-gray-800 dark:text-white/90 mb-0.5">Entrepreneur</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">Particulier, emploi domestique</p>
+                {tenantType === "ENTREPRENEUR" && (
+                  <div className="mt-2 flex items-center gap-1 text-[#16a34a] text-xs font-semibold">
+                    <svg className="size-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Sélectionné
+                  </div>
+                )}
+              </button>
+            </div>
+
+            <Button
+              className="w-full"
+              size="sm"
+              disabled={!tenantType}
+              onClick={() => setStep(2)}
+            >
+              Continuer
+            </Button>
+          </>
+        )}
+
+        {/* ── STEP 2 : Informations ──────────────────────── */}
+        {step === 2 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1">
+              {tenantType === "ENTREPRISE" ? "Votre entreprise" : "Vos informations"}
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
               {tenantType === "ENTREPRISE"
-                ? "Nom de l'entreprise"
-                : "Votre nom complet"}{" "}
-              <span className="text-error-500">*</span>
-            </Label>
-            <Input
-              placeholder={
-                tenantType === "ENTREPRISE"
-                  ? "ACME Côte d'Ivoire"
-                  : "Kouassi Jean-Pierre"
-              }
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
+                ? "Renseignez les informations de votre société."
+                : "Renseignez vos informations personnelles."}
+            </p>
 
-          <div>
-            <Label>Téléphone</Label>
-            <Input
-              type="tel"
-              placeholder="+225 07 00 00 00 00"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </div>
-        </div>
+            <div className="space-y-4 mb-6">
+              {error && <ErrorBanner msg={error} />}
 
-        <Button
-          className="w-full"
-          size="sm"
-          disabled={!tenantType || !name.trim() || loading}
-          onClick={handleConfirm}
-        >
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <span className="size-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-              Enregistrement…
-            </span>
-          ) : (
-            "Confirmer mon profil"
-          )}
-        </Button>
+              <div>
+                <Label>
+                  {tenantType === "ENTREPRISE" ? "Nom de l'entreprise" : "Votre nom complet"}{" "}
+                  <span className="text-error-500">*</span>
+                </Label>
+                <Input
+                  placeholder={tenantType === "ENTREPRISE" ? "ACME Côte d'Ivoire" : "Kouassi Jean-Pierre"}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label>Téléphone</Label>
+                <Input
+                  type="tel"
+                  placeholder="+225 07 00 00 00 00"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => { setError(""); setStep(1); }}
+                disabled={loading}
+              >
+                Retour
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1"
+                disabled={!name.trim() || loading}
+                onClick={handleConfirm}
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="size-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                    Enregistrement…
+                  </span>
+                ) : (
+                  "Confirmer mon profil"
+                )}
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
